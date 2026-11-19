@@ -1,29 +1,43 @@
-# Room Safe Archive
+# Android Room Database Backup and Restore Archive
 
-A dependency-free Kotlin/JVM core for encrypted, versioned SQLite snapshot archives. It adds AES-GCM authenticated encryption, a bounded manifest, SHA-256 verification, restore preview, and a temporary validated snapshot file. It does not open or copy a live Room database.
+A dependency-free Kotlin/JVM library for encrypted, versioned archives of Android Room and SQLite database snapshots. It verifies AES-GCM authentication and a SHA-256 snapshot digest, provides restore preview, and writes a temporary validated snapshot for the host app to restore.
 
-## Build and test
+This is an archive layer for Room apps, not a plugin that copies a live database. Your app must create a consistent SQLite snapshot and own the Room lifecycle, database replacement, migration, and rollback steps.
 
-The source uses only the Kotlin standard library and JDK crypto/file APIs. Run ./gradlew check (Windows: gradlew.bat check).
+## Build from source
 
-## Export flow
+The library uses Kotlin standard-library and JDK crypto/file APIs, requires JDK 21, and has no Android dependency. From a checkout, run:
 
-1. Ask Room or SQLite for a consistent snapshot using the application's supported lifecycle and checkpoint procedure. Do not copy only the main database file while WAL mode has pending data.
-2. Call RoomArchive.export(snapshotFile, archiveFile, databaseId, schemaVersion, key).
-3. Store the generated AES key separately from the archive. RoomArchive.generateKey creates a random 256-bit key; applications should wrap or store it using their platform's key-management design.
+```sh
+git clone https://github.com/buxerr/room-safe-archive.git
+cd room-safe-archive
+./gradlew check
+```
 
-## Restore flow
+On Windows, use `gradlew.bat check`.
 
-Call RoomArchive.openForRestore after the user chooses an archive. The library verifies the complete GCM tag and snapshot digest before returning a RestorePlan. Inspect plan.info for a preview, pass plan.snapshotFile into the application's Room restore and migration flow, and close the plan promptly. The snapshot is a temporary plaintext file; protect the temporary directory and do not expose it to other apps.
+## Export an encrypted Room snapshot
 
-The archive layer never replaces the live database. The host app owns transaction boundaries, Room lifecycle coordination, migration hooks, and rollback if restore fails.
+1. Ask Room or SQLite for a consistent snapshot using the lifecycle and checkpoint procedure supported by your app. In WAL mode, copying only the main database file can omit committed data that is still in the WAL.
+2. Call `RoomArchive.export(snapshotFile, archiveFile, databaseId, schemaVersion, key)`.
+3. Store the AES key separately from the archive. `RoomArchive.generateKey()` creates a random 256-bit key; wrap or store it with your app's platform key-management design.
 
-## Format and limits
+## Preview and restore
 
-RMA1 uses a fixed header, a random 96-bit GCM nonce, and encrypted manifest-plus-snapshot payload. The manifest stores archive format, database id, schema version, creation time, byte length, and SHA-256. The default snapshot limit is 1 GiB and can be lowered by the caller. Keys are user-held application inputs; passwords are not accepted or derived by this library.
+Call `RoomArchive.openForRestore(archiveFile, key)` after the user selects an archive. The library verifies the GCM tag and snapshot digest before returning a `RestorePlan`. Show `plan.info` as a preview, pass `plan.snapshotFile` into the app's restore and migration flow, and close the plan promptly.
 
-## Scope
+The validated snapshot is temporary plaintext. Protect its temporary directory and do not expose it to other apps. The archive library never replaces the live Room database.
 
-This is an initial JVM archive core, not a drop-in Android Room plugin. It does not provide Room builder integration, Android Keystore wrappers, cloud sync, or automatic migrations. A consistent source snapshot and a safe app-specific restore strategy remain required.
+## Archive format and limits
 
-MIT licensed. See LICENSE.
+RMA1 contains a fixed header and an encrypted manifest-plus-snapshot payload. The manifest records archive format, database ID, schema version, creation time, byte length, and SHA-256 digest. The default snapshot limit is 1 GiB and callers can lower it. Keys are supplied by the application; passwords are not accepted or derived.
+
+For background on database snapshot handling, see [SQLite write-ahead logging](https://www.sqlite.org/wal.html) and the [Room persistence library](https://developer.android.com/training/data-storage/room).
+
+## Scope and limitations
+
+This is an initial JVM archive core, not a drop-in Android Room plugin. It does not provide Room builder integration, Android Keystore wrappers, cloud sync, or automatic migrations. A consistent source snapshot and an app-specific restore strategy remain the caller's responsibility.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
