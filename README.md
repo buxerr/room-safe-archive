@@ -2,6 +2,20 @@
 
 A dependency-free Kotlin/JVM library for encrypted, versioned archives of Android Room and SQLite database snapshots. It verifies AES-GCM authentication and a SHA-256 snapshot digest, provides restore preview, and writes a temporary validated snapshot for the host app to restore.
 
+## Dependency coordinates
+
+Tagged releases are consumable from JitPack. After a `v0.1.0` release is available, add the repository and dependency to Gradle:
+
+```kotlin
+repositories {
+    maven("https://jitpack.io")
+}
+
+dependencies {
+    implementation("com.github.buxerr:room-safe-archive:v0.1.0")
+}
+```
+
 This is an archive layer for Room apps, not a plugin that copies a live database. Your app must create a consistent SQLite snapshot and own the Room lifecycle, database replacement, migration, and rollback steps.
 
 ## Build from source
